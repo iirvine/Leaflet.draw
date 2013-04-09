@@ -155,6 +155,61 @@ L.Edit.Poly = L.Handler.extend({
 		});
 	},
 
+	_onMidMarkerClick: function(ondragstart, ondragend) {
+		var handler = function() {
+			ondragstart.call(this);
+			ondragend.call(this);
+			this._fireEdit();
+		};
+		return handler;
+	},
+
+	_onMidMarkerDragStart: function(markers, latlng) {
+		var handler = function() {
+			var marker = markers[0],
+				marker1 = markers[1],
+				marker2 = markers[2],
+				i = marker2._index;
+
+			marker._index = i
+			marker
+				.off('click', null, this)
+				.on('click', this._onMarkerClick, this);
+
+			latlng.lat = marker.getLatLng().lat;
+			latlng.lng = marker.getLatLng().lng;
+			this._poly.spliceLatLngs(i, 0, latlng);
+			this._markers.splice(i, 0, marker);
+			marker.setOpacity(1);
+
+			this._updateIndexes(i, 1);
+			marker2._index++;
+			this._updatePrevNext(marker1, marker);
+			this._updatePrevNext(marker, marker2);
+		};
+		return handler;
+	},
+
+	_onMidMarkerDragEnd: function(markers, ondragstart) {
+		var handler = function() {
+			var marker = markers[0],
+				marker1 = markers[1],
+				marker2 = markers[2]
+
+			marker.off('dragstart', ondragstart, this);
+			marker.off('dragend', handler, this);
+
+			this._createMiddleMarker(marker1, marker);
+			this._createMiddleMarker(marker, marker2);
+		};
+		return handler;
+	},
+
+	getHandlerFor: function(fn) {
+		var args = arguments.length > 1 ? Array.prototype.slice.call(arguments, 1) : null;
+		return L.bind.apply(L.bind, [fn, this].concat(args))();
+	},
+
 	_createMiddleMarker: function (marker1, marker2) {
 		var latlng = this._getMiddleLatLng(marker1, marker2),
 		    marker = this._createMarker(latlng),
@@ -163,44 +218,12 @@ L.Edit.Poly = L.Handler.extend({
 		    onDragEnd;
 
 		marker.setOpacity(0.6);
-
 		marker1._middleRight = marker2._middleLeft = marker;
+		markers = [marker, marker1, marker2];
 
-		onDragStart = function () {
-			var i = marker2._index;
-
-			marker._index = i;
-
-			marker
-			    .off('click', onClick)
-			    .on('click', this._onMarkerClick, this);
-
-			latlng.lat = marker.getLatLng().lat;
-			latlng.lng = marker.getLatLng().lng;
-			this._poly.spliceLatLngs(i, 0, latlng);
-			this._markers.splice(i, 0, marker);
-
-			marker.setOpacity(1);
-
-			this._updateIndexes(i, 1);
-			marker2._index++;
-			this._updatePrevNext(marker1, marker);
-			this._updatePrevNext(marker, marker2);
-		};
-
-		onDragEnd = function () {
-			marker.off('dragstart', onDragStart, this);
-			marker.off('dragend', onDragEnd, this);
-
-			this._createMiddleMarker(marker1, marker);
-			this._createMiddleMarker(marker, marker2);
-		};
-
-		onClick = function () {
-			onDragStart.call(this);
-			onDragEnd.call(this);
-			this._fireEdit();
-		};
+		onDragStart = this.getHandlerFor(this._onMidMarkerDragStart, markers, latlng);
+		onDragEnd = this.getHandlerFor(this._onMidMarkerDragEnd, markers, onDragStart);
+		onClick = this.getHandlerFor(this._onMidMarkerClick, onDragStart, onDragEnd);
 
 		marker
 		    .on('click', onClick, this)
