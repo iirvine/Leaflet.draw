@@ -211,20 +211,16 @@ L.Edit.Poly = L.Handler.extend({
 	},
 
 	_createMiddleMarker: function (marker1, marker2) {
-		var latlng = this._getMiddleLatLng(marker1, marker2),
-		    marker = this._createMarker(latlng),
-		    onClick,
-		    onDragStart,
-		    onDragEnd;
-
-		markers = [marker, marker1, marker2];
+		var marker = this._createMarker(this._getMiddleLatLng(marker1, marker2));
 
 		marker.setOpacity(0.6);
 		marker1._middleRight = marker2._middleLeft = marker;
+		this._bindMiddleMarker(marker, marker1, marker2);
+	},
 
-		onDragStart = this._getHandler(this._onMidMarkerDragStart, markers, latlng);
-		onDragEnd = this._getHandler(this._onMidMarkerDragEnd, markers, onDragStart);
-		onClick = this._getHandler(this._onMidMarkerClick, onDragStart, onDragEnd);
+	_bindMiddleMarker: function(marker, marker1, marker2) {
+		var markers = [marker, marker1, marker2];
+		onDragStart = this._getHandler(this._onMidMarkerDragStart, markers, marker.getLatLng());
 
 		marker
 		    .on('click', onClick, this)
