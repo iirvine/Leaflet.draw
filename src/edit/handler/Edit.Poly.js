@@ -205,7 +205,7 @@ L.Edit.Poly = L.Handler.extend({
 		return handler;
 	},
 
-	getHandlerFor: function(fn) {
+	_getHandler: function(fn) {
 		var args = arguments.length > 1 ? Array.prototype.slice.call(arguments, 1) : null;
 		return L.bind.apply(L.bind, [fn, this].concat(args))();
 	},
@@ -217,20 +217,19 @@ L.Edit.Poly = L.Handler.extend({
 		    onDragStart,
 		    onDragEnd;
 
-		marker.setOpacity(0.6);
-		marker1._middleRight = marker2._middleLeft = marker;
 		markers = [marker, marker1, marker2];
 
-		onDragStart = this.getHandlerFor(this._onMidMarkerDragStart, markers, latlng);
-		onDragEnd = this.getHandlerFor(this._onMidMarkerDragEnd, markers, onDragStart);
-		onClick = this.getHandlerFor(this._onMidMarkerClick, onDragStart, onDragEnd);
+		marker.setOpacity(0.6);
+		marker1._middleRight = marker2._middleLeft = marker;
+
+		onDragStart = this._getHandler(this._onMidMarkerDragStart, markers, latlng);
+		onDragEnd = this._getHandler(this._onMidMarkerDragEnd, markers, onDragStart);
+		onClick = this._getHandler(this._onMidMarkerClick, onDragStart, onDragEnd);
 
 		marker
 		    .on('click', onClick, this)
 		    .on('dragstart', onDragStart, this)
 		    .on('dragend', onDragEnd, this);
-
-		this._markerGroup.addLayer(marker);
 	},
 
 	_updatePrevNext: function (marker1, marker2) {
