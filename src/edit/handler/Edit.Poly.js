@@ -205,32 +205,29 @@ L.Edit.Poly = L.Handler.extend({
 		return handler;
 	},
 
-	getHandlerFor: function(fn) {
+	_getHandler: function(fn) {
 		var args = arguments.length > 1 ? Array.prototype.slice.call(arguments, 1) : null;
 		return L.bind.apply(L.bind, [fn, this].concat(args))();
 	},
 
 	_createMiddleMarker: function (marker1, marker2) {
-		var latlng = this._getMiddleLatLng(marker1, marker2),
-		    marker = this._createMarker(latlng),
-		    onClick,
-		    onDragStart,
-		    onDragEnd;
+		var marker = this._createMarker(this._getMiddleLatLng(marker1, marker2));
 
 		marker.setOpacity(0.6);
 		marker1._middleRight = marker2._middleLeft = marker;
-		markers = [marker, marker1, marker2];
+		this._bindMiddleMarker(marker, marker1, marker2);
+	},
 
-		onDragStart = this.getHandlerFor(this._onMidMarkerDragStart, markers, latlng);
-		onDragEnd = this.getHandlerFor(this._onMidMarkerDragEnd, markers, onDragStart);
-		onClick = this.getHandlerFor(this._onMidMarkerClick, onDragStart, onDragEnd);
+	_bindMiddleMarker: function(marker, marker1, marker2) {
+		var markers = [marker, marker1, marker2];
+		onDragStart = this._getHandler(this._onMidMarkerDragStart, markers, marker.getLatLng());
+		onDragEnd = this._getHandler(this._onMidMarkerDragEnd, markers, onDragStart);
+		onClick = this._getHandler(this._onMidMarkerClick, onDragStart, onDragEnd);
 
 		marker
 		    .on('click', onClick, this)
 		    .on('dragstart', onDragStart, this)
 		    .on('dragend', onDragEnd, this);
-
-		this._markerGroup.addLayer(marker);
 	},
 
 	_updatePrevNext: function (marker1, marker2) {
