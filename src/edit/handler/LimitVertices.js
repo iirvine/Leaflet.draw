@@ -1,53 +1,81 @@
+L.Polyline.addInitHook(function(){
+	if (this.editing) {
+		this.off('add', null, this);
+		this.off('remove', null, this);
+	}
 
-L.Edit.Poly.prototype.limitVertices = function(fn) {
-	return function() {
-		var handler = L.bind(fn.apply(this, arguments), this);
-		var aspect = function(){
-			if (this._markers.length < 5) {
-				console.log('okay, good to go');
-				handler();
-			} else {
-				console.log('uh oh, too many markers');
-				handler();
-			}
+	this.editing = new L.Edit.Poly.Custom(this);
+
+	if (this.options.editable) {
+		this.editing.enable();
+	}
+	this.on('add', function(){
+		if (this.editing && this.editing.enabled()) {
+			this.editing.addHooks();
 		}
-		return aspect;
-	};
-};
+	})
+	this.on('remove', function(){
+		if (this.editing && this.editing.enabled()) {
+			this.editing.removeHooks();
+		}
+	})
+})
 
-L.Edit.Poly.prototype.doSomethingToFifthMarker = function(fn) {
-	return function() {
-		var handler = L.bind(fn.apply(this, arguments), this);
+L.Edit.Poly.Custom = L.Edit.Poly.extend({
+	_compose: function(){
+		if (!arguments) return;
+		var funcs = arguments;
+		return function() {
+			var args = arguments;
+	      	for (var i = funcs.length - 1; i >= 0; i--) {
+        		args = [funcs[i].apply(this, args)];
+      		}
+      		return args[0];
+		};
+	},
+
+	_bindMiddleMarker: function(marker, marker1, marker2) {
+		var markers = [marker, marker1, marker2];
+		var pipeline = this._compose(this._logMarkersLength, this._doSomethingToFifthMarker, this._limitVertices, this._onMidMarkerDragStart)
+
+		var onDragStart = this._getHandler(pipeline, markers, marker.getLatLng());
+		var onDragEnd = this._getHandler(this._onMidMarkerDragEnd, markers, onDragStart);
+		var onClick = this._getHandler(this._onMidMarkerClick, onDragStart, onDragEnd);
+
+		marker
+		    .on('click', onClick, this)
+		    .on('dragstart', onDragStart, this)
+		    .on('dragend', onDragEnd, this);
+	},
+
+	_doSomethingToFifthMarker: function(next) {
 		var aspect = function(markers) {
 			if (this._markers.length == 5) {
 				console.log("hello from fifth marker aspec!");
 			}
-			handler();
+			next.call(this);
 		};
 		return aspect
+	},
+
+	_logMarkersLength: function(next) {
+		var aspect = function() {
+			console.log(this._markers.length);
+			next.call(this);
+		}
+		return aspect;
+	},
+
+	_limitVertices: function(next) {
+		var aspect = function() {
+			if (this._markers.length < 5) {
+				console.log('okay, good to go');
+				next.call(this);
+			} else {
+				console.log('uh oh, too many markers');
+				next.call(this);
+			}
+		}
+		return aspect;
 	}
-}
-
-L.Edit.Poly.prototype._createMiddleMarker = function (marker1, marker2) {
-	var latlng = this._getMiddleLatLng(marker1, marker2),
-	    marker = this._createMarker(latlng),
-	    onClick,
-	    onDragStart,
-	    onDragEnd;
-
-	markers = [marker, marker1, marker2];
-
-	marker.setOpacity(0.6);
-	marker1._middleRight = marker2._middleLeft = marker;
-
-	var pipeline = this.doSomethingToFifthMarker(this.limitVertices(this._onMidMarkerDragStart));
-
-	onDragStart = this._getHandler(pipeline, markers, latlng);
-	onDragEnd = this._getHandler(this._onMidMarkerDragEnd, markers, onDragStart);
-	onClick = this._getHandler(this._onMidMarkerClick, onDragStart, onDragEnd);
-
-	marker
-	    .on('click', onClick, this)
-	    .on('dragstart', onDragStart, this)
-	    .on('dragend', onDragEnd, this);
-;}
+});
