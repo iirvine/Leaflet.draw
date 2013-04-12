@@ -23,27 +23,37 @@ L.Polyline.addInitHook(function(){
 
 L.Edit.Poly.Custom = L.Edit.Poly.extend({
 	options: {
-		hidden: false
+		hidden: false,
 	},
 
-	_compose: function(){
-		if (!arguments) return;
-		var funcs = arguments;
+	initialize: function(poly, options) {
+		L.Edit.Poly.prototype.initialize.call(this, poly, options);
+		this._setPipes();
+	},
+
+	_setPipes: function() {
+		this.onDragStartPipe = [this._logMarkersLength, this._doSomethingToFifthMarker, this._limitVertices, this._onMidMarkerDragStart];
+		this.onDragEndPipe   = [this._exitIfHidden, this._onMidMarkerDragEnd];
+	},
+
+	pipe: function(){
+		if (!arguments || (!Array.isArray(arguments[0]) && arguments.length < 2)) throw Error('you did it bad');
+		var funcs = Array.isArray(arguments[0]) ? arguments[0] : arguments;
 		return function() {
+			// apply our arguments to the last function in our pipe...
 			var args = arguments;
-	      	for (var i = funcs.length - 1; i >= 0; i--) {
-        		args = [funcs[i].apply(this, args)];
-      		}
-      		return args[0];
+			args = [funcs[funcs.length - 1].apply(this, args)];
+			for (var i = funcs.length - 2; i>= 0; i--) {
+				args = [funcs[i].apply(this, args.concat([].slice.call(arguments)))];
+			}
+			return args[0];
 		};
 	},
 
 	_bindMiddleMarker: function(marker, marker1, marker2) {
 		var markers = [marker, marker1, marker2],
-			onDragStartPipe = this._compose(this._logMarkersLength, this._doSomethingToFifthMarker, this._limitVertices, this._onMidMarkerDragStart),
-			onDragEndPipe = this._compose(this._exitIfHidden, this._onMidMarkerDragEnd);
-
-
+			onDragStartPipe = this.pipe(this.onDragStartPipe),
+			onDragEndPipe = this.pipe(this.onDragEndPipe);
 
 		var onDragStart = this._getHandler(onDragStartPipe, markers, marker.getLatLng());
 		var onDragEnd = this._getHandler(onDragEndPipe, markers, onDragStart);
@@ -70,9 +80,11 @@ L.Edit.Poly.Custom = L.Edit.Poly.extend({
 	},
 
 	_doSomethingToFifthMarker: function(next) {
+		var rest = Array.prototype.slice.call(arguments, 1);
 		return function() {
 			if (this._markers.length == 5) {
 				console.log("hello from fifth marker aspec!");
+				rest[0][0].test = true;
 			}
 			next.call(this);
 		};
@@ -95,6 +107,7 @@ L.Edit.Poly.Custom = L.Edit.Poly.extend({
 	},
 
 	_limitVertices: function(next) {
+		var rest = Array.prototype.slice.call(arguments, 1);
 		return function() {
 			if (this._markers.length < 5) {
 				console.log('okay, good to go');
