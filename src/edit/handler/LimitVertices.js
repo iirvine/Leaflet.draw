@@ -21,22 +21,7 @@ L.Polyline.addInitHook(function(){
 	})
 })
 
-L.Edit.Poly.Custom = L.Edit.Poly.extend({
-	options: {
-		hidden: false,
-	},
-
-	initialize: function(poly, options) {
-		L.Edit.Poly.prototype.initialize.call(this, poly, options);
-		this._setPipes();
-	},
-
-	_setPipes: function() {
-		this.onDragStartPipe = [this._logMarkersLength, this._doSomethingToFifthMarker, this._limitVertices, this._onMidMarkerDragStart];
-		this.onDragEndPipe   = [this._exitIfHidden, this._onMidMarkerDragEnd];
-	},
-
-	pipe: function(){
+function pipe() {
 		if (!arguments || (!Array.isArray(arguments[0]) && arguments.length < 2)) throw Error('you did it bad');
 		var funcs = Array.isArray(arguments[0]) ? arguments[0] : arguments;
 		return function() {
@@ -48,21 +33,33 @@ L.Edit.Poly.Custom = L.Edit.Poly.extend({
 			}
 			return args[0];
 		};
+	}
+
+L.Edit.Poly.Custom = L.Edit.Poly.extend({
+	options: {
+		hidden: false,
+	},
+
+	initialize: function(poly, options) {
+		L.Edit.Poly.prototype.initialize.call(this, poly, options);
+		this._setPipes();
+	},
+
+	_setPipes: function() {
+		this.onDragStartPipe = pipe([this._logMarkersLength, this._onMidMarkerDragStart]);
+		this.onDragEndPipe   = pipe([this._exitIfHidden, this._onMidMarkerDragEnd]);
 	},
 
 	_bindMiddleMarker: function(marker, marker1, marker2) {
 		var markers = [marker, marker1, marker2],
-			onDragStartPipe = this.pipe(this.onDragStartPipe),
-			onDragEndPipe = this.pipe(this.onDragEndPipe);
-
-		var onDragStart = this._getHandler(onDragStartPipe, markers, marker.getLatLng());
-		var onDragEnd = this._getHandler(onDragEndPipe, markers, onDragStart);
-		var onClick = this._getHandler(this._onMidMarkerClick, onDragStart, onDragEnd);
+			onDragStart = this._getHandler(this.onDragStartPipe, markers, marker.getLatLng()),
+			onDragEnd = this._getHandler(this.onDragEndPipe, markers, onDragStart),
+			onClick = this._getHandler(this._onMidMarkerClick, markers, onDragStart, onDragEnd);
 
 		marker
 		    .on('click', onClick, this)
-		    .on('dragstart', onDragStart, this)
-		    .on('dragend', onDragEnd, this);
+		    .once('dragstart', onDragStart, this)
+		    .once('dragend', onDragEnd, this);
 	},
 
 	_hideMiddleMarkers: function() {

@@ -155,17 +155,22 @@ L.Edit.Poly = L.Handler.extend({
 		});
 	},
 
-	_onMidMarkerClick: function(ondragstart, ondragend) {
-		var handler = function() {
+	_onMidMarkerClick: function(markers, ondragstart, ondragend) {
+		return function() {
+			var marker = markers[0];
+
 			ondragstart.call(this);
 			ondragend.call(this);
+
+			marker.off('dragstart', ondragstart, this);
+			marker.off('dragend', ondragend, this);
+
 			this._fireEdit();
 		};
-		return handler;
 	},
 
 	_onMidMarkerDragStart: function(markers, latlng) {
-		var handler = function() {
+		return function() {
 			var marker = markers[0],
 				marker1 = markers[1],
 				marker2 = markers[2],
@@ -187,22 +192,17 @@ L.Edit.Poly = L.Handler.extend({
 			this._updatePrevNext(marker1, marker);
 			this._updatePrevNext(marker, marker2);
 		};
-		return handler;
 	},
 
 	_onMidMarkerDragEnd: function(markers, ondragstart) {
-		var handler = function() {
+		return function() {
 			var marker = markers[0],
 				marker1 = markers[1],
 				marker2 = markers[2]
 
-			marker.off('dragstart', ondragstart, this);
-			marker.off('dragend', handler, this);
-
 			this._createMiddleMarker(marker1, marker);
 			this._createMiddleMarker(marker, marker2);
 		};
-		return handler;
 	},
 
 	_getHandler: function(fn) {
@@ -222,12 +222,12 @@ L.Edit.Poly = L.Handler.extend({
 		var markers = [marker, marker1, marker2],
 			onDragStart = this._getHandler(this._onMidMarkerDragStart, markers, marker.getLatLng())
 			onDragEnd = this._getHandler(this._onMidMarkerDragEnd, markers, onDragStart)
-			onClick = this._getHandler(this._onMidMarkerClick, onDragStart, onDragEnd);
+			onClick = this._getHandler(this._onMidMarkerClick, markers, onDragStart, onDragEnd);
 
 		marker
 		    .on('click', onClick, this)
-		    .on('dragstart', onDragStart, this)
-		    .on('dragend', onDragEnd, this);
+		    .once('dragstart', onDragStart, this)
+		    .once('dragend', onDragEnd, this);
 	},
 
 	_updatePrevNext: function (marker1, marker2) {
